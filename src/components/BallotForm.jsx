@@ -23,43 +23,35 @@ export default function BallotForm({ role, onSubmit }) {
         </p>
       </div>
 
-      {/* Legende */}
-      <div style={{ display: 'flex', gap: '0.3rem', justifyContent: 'flex-end', paddingRight: '0.25rem' }}>
-        {LEVELS.map((l) => (
-          <div key={l.value} style={{ flex: 1, textAlign: 'center', fontSize: '0.65rem', color: l.color, fontWeight: 600 }}>
-            {l.label}
-          </div>
-        ))}
-      </div>
-
       <div className="gap-sm">
         {role.candidates.map((c) => {
           const val = scores[c.name]
           return (
-            <div key={c.name} className="card" style={{ padding: '0.75rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
+            <div key={c.name} className="card" style={{ padding: '0.75rem 1rem' }}>
+              <div style={{ marginBottom: '0.5rem' }}>
                 <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{c.name}</span>
                 <span className={`tag tag-${c.type}`} style={{ marginLeft: '0.4rem' }}>{c.type}</span>
               </div>
-              <div style={{ display: 'flex', gap: '0.3rem', flexShrink: 0 }}>
+              <div style={{ display: 'flex', gap: '0.4rem' }}>
                 {LEVELS.map((l) => {
                   const selected = val === l.value
                   return (
                     <button
                       key={l.value}
                       onClick={() => setScores((p) => ({ ...p, [c.name]: l.value }))}
-                      title={l.label}
                       style={{
-                        width: 48, height: 48,
+                        flex: 1,
+                        height: 44,
                         borderRadius: 8,
                         border: selected ? `2.5px solid ${l.color}` : '2px solid var(--border)',
                         background: selected ? l.bg : 'var(--bg)',
                         color: selected ? l.color : 'var(--muted)',
                         fontWeight: selected ? 700 : 400,
-                        fontSize: '0.65rem',
+                        fontSize: '0.7rem',
                         lineHeight: 1.2,
                         padding: '2px',
                         transition: 'all 0.1s',
+                        cursor: 'pointer',
                       }}
                     >
                       {l.label}
