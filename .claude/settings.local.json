@@ -5,7 +5,13 @@
       "Bash(git --version)",
       "Bash(where git *)",
       "PowerShell(gh auth status 2>&1)",
-      "PowerShell($env:PATH += \";C:\\\\Program Files\\\\nodejs\"; cd \"C:\\\\Users\\\\PhilipBlaser\\(Flavum\\)\\\\OneDrive - Flavum\\\\Desktop\\\\Rollenwahl\"; npm create vite@latest . -- --template react --yes 2>&1)"
+      "PowerShell($env:PATH += \";C:\\\\Program Files\\\\nodejs\"; cd \"C:\\\\Users\\\\PhilipBlaser\\(Flavum\\)\\\\OneDrive - Flavum\\\\Desktop\\\\Rollenwahl\"; npm create vite@latest . -- --template react --yes 2>&1)",
+      "WebSearch",
+      "Bash(npm list *)",
+      "Bash(npm install *)",
+      "Bash(node gen_anleitung.js)",
+      "Bash(npm root *)",
+      "Bash(NODE_PATH=\"C:/Users/PhilipBlaser\\(Flavum\\)/AppData/Roaming/npm/node_modules\" node gen_anleitung.js)"
     ]
   }
 }

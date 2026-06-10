@@ -7,7 +7,7 @@ const STATUS_LABEL = { setup: 'Vorbereitung', open: 'Offen', closed: 'Ausgewerte
 const STATUS_COLOR = { setup: '#6b7280', open: '#16a34a', closed: '#2563eb' }
 
 export default function ModeratorView() {
-  const { roles, initRoles, setStatus, addCandidate, removeCandidate, getResults } = useRoles()
+  const { roles, initRoles, setStatus, addCandidate, removeCandidate, getResults, resetRole } = useRoles()
   const [results, setResults] = useState({})
   const [newName, setNewName] = useState({})
   const [newType, setNewType] = useState({})
@@ -155,6 +155,16 @@ export default function ModeratorView() {
                 {role.status === 'open' && (
                   <button className="btn-primary" style={{ flex: 1, background: '#dc2626' }} onClick={() => handleClose(role.id)}>
                     Abstimmung schliessen
+                  </button>
+                )}
+                {(role.status === 'closed' || role.status === 'open') && (
+                  <button className="btn-danger" style={{ flex: 1 }} onClick={() => {
+                    if (window.confirm(`Alle Stimmen für «${role.title}» wirklich löschen und zurücksetzen?`)) {
+                      resetRole(role.id)
+                      setResults((prev) => { const n = { ...prev }; delete n[role.id]; return n })
+                    }
+                  }}>
+                    ↺ Zurücksetzen
                   </button>
                 )}
               </div>

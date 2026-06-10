@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { ref, onValue, set, update, push, get } from 'firebase/database'
+import { ref, onValue, set, update, push, get, increment } from 'firebase/database'
 import { db } from '../firebase'
 import { INITIAL_ROLES } from '../data/roles'
+import { aggregateVotes } from '../lib/logic'
 
 export function useRoles() {
   const [roles, setRoles] = useState(null)
@@ -18,6 +19,7 @@ export function useRoles() {
             candidates: remote.candidates ? Object.values(remote.candidates) : r.candidates,
             status: remote.status || r.status,
             voteCount: remote.voteCount || 0,
+            round: remote.round || 0,
           }
         })
         setRoles(parsed)
@@ -36,6 +38,7 @@ export function useRoles() {
         obj[r.id] = {
           status: 'setup',
           voteCount: 0,
+          round: 0,
           candidates: r.candidates,
         }
       })
@@ -65,23 +68,23 @@ export function useRoles() {
   async function submitVote(roleId, ballot) {
     const votesRef = ref(db, `rollenwahl/${roleId}/votes`)
     await push(votesRef, ballot)
-    const snap = await get(ref(db, `rollenwahl/${roleId}/voteCount`))
-    const current = snap.exists() ? snap.val() : 0
-    await set(ref(db, `rollenwahl/${roleId}/voteCount`), current + 1)
+    await update(ref(db, `rollenwahl/${roleId}`), { voteCount: increment(1) })
+  }
+
+  async function resetRole(roleId) {
+    await update(ref(db, `rollenwahl/${roleId}`), {
+      status: 'setup',
+      voteCount: 0,
+      votes: null,
+      round: increment(1),
+    })
   }
 
   async function getResults(roleId) {
     const snap = await get(ref(db, `rollenwahl/${roleId}/votes`))
     if (!snap.exists()) return {}
-    const votes = Object.values(snap.val())
-    const totals = {}
-    votes.forEach((ballot) => {
-      Object.entries(ballot).forEach(([name, score]) => {
-        totals[name] = (totals[name] || 0) + score
-      })
-    })
-    return totals
+    return aggregateVotes(Object.values(snap.val()))
   }
 
-  return { roles, initRoles, setStatus, addCandidate, removeCandidate, submitVote, getResults }
+  return { roles, initRoles, setStatus, addCandidate, removeCandidate, submitVote, getResults, resetRole }
 }

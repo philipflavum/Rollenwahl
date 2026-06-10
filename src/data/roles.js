@@ -7,13 +7,11 @@ export const INITIAL_ROLES = [
       { name: 'Anjli', type: 'fremd' },
       { name: 'Fiona', type: 'fremd' },
       { name: 'Isabel', type: 'fremd' },
-      { name: 'Ivo', type: 'fremd' },
       { name: 'Lea', type: 'fremd' },
       { name: 'Manuela', type: 'fremd' },
       { name: 'Nicolas', type: 'fremd' },
-      { name: 'Noémi', type: 'fremd' },
       { name: 'Renata', type: 'fremd' },
-      { name: 'Valeria', type: 'fremd' },
+      { name: 'Valerie', type: 'fremd' },
     ],
     status: 'setup',
     voteCount: 0,
@@ -28,7 +26,6 @@ export const INITIAL_ROLES = [
       { name: 'Leonie', type: 'fremd' },
       { name: 'Manuela', type: 'fremd' },
       { name: 'Nicolas', type: 'fremd' },
-      { name: 'Sarah', type: 'selbst' },
     ],
     status: 'setup',
     voteCount: 0,
@@ -55,9 +52,7 @@ export const INITIAL_ROLES = [
       { name: 'Fiona', type: 'fremd' },
       { name: 'Isabel', type: 'selbst' },
       { name: 'Lea', type: 'fremd' },
-      { name: 'Michel', type: 'fremd' },
       { name: 'Nicolas', type: 'fremd' },
-      { name: 'Valeria', type: 'fremd' },
     ],
     status: 'setup',
     voteCount: 0,
@@ -68,7 +63,7 @@ export const PLENUM = [
   'Alan', 'Andreas', 'Anjli', 'Barbara', 'Che', 'Fiona',
   'Isabel', 'Ivo', 'Jacqueline', 'Laetitia', 'Lea', 'Leonie',
   'Luzia', 'Manuela', 'Michel', 'Monika', 'Nicolas', 'Noémi',
-  'Renata', 'Sarah', 'Tatjana', 'Valeria',
+  'Renata', 'Sarah', 'Tatjana', 'Valerie',
 ]
 
-export const TOTAL_VOTERS = 22
+export const TOTAL_VOTERS = 25
