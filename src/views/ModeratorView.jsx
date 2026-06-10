@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useRoles } from '../hooks/useRoles'
 import { TOTAL_VOTERS } from '../data/roles'
+import { getWinners, average } from '../lib/logic'
 
 const STATUS_LABEL = { setup: 'Vorbereitung', open: 'Offen', closed: 'Ausgewertet' }
 const STATUS_COLOR = { setup: '#6b7280', open: '#16a34a', closed: '#2563eb' }
@@ -35,14 +36,6 @@ export default function ModeratorView() {
     })
   }, [roles])
 
-  function getWinners(role, totals) {
-    const sorted = Object.entries(totals).sort((a, b) => a[1] - b[1])
-    if (sorted.length === 0) return []
-    const cutoffIndex = role.seats - 1
-    if (cutoffIndex >= sorted.length) return sorted.map(([n]) => n)
-    const cutoffScore = sorted[cutoffIndex][1]
-    return sorted.filter(([, s]) => s <= cutoffScore).map(([n]) => n)
-  }
 
   if (!roles) return <div className="page" style={{ paddingTop: '3rem', textAlign: 'center', color: 'var(--muted)' }}>Verbinde mit Firebase…</div>
 
@@ -65,7 +58,7 @@ export default function ModeratorView() {
       <div className="gap-lg">
         {roles.map((role) => {
           const totals = results[role.id] || {}
-          const winners = role.status === 'closed' ? getWinners(role, totals) : []
+          const winners = role.status === 'closed' ? getWinners(totals, role.seats) : []
           const addKey = role.id
 
           return (
@@ -135,16 +128,42 @@ export default function ModeratorView() {
                 </div>
               )}
 
-              {role.status === 'closed' && winners.length > 0 && (
-                <div style={{ background: 'var(--green-light)', borderRadius: 8, padding: '0.75rem' }}>
-                  <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--green)', marginBottom: '0.4rem' }}>
-                    Gewählt ({role.seats} Platz{role.seats > 1 ? 'e' : ''})
+              {role.status === 'closed' && Object.keys(totals).length > 0 && (() => {
+                const sorted = Object.entries(totals).sort((a, b) => a[1] - b[1])
+                const maxScore = role.voteCount * 10 || 1
+                return (
+                  <div className="gap-sm">
+                    <h3>Ergebnis — alle Kandidierende</h3>
+                    {sorted.map(([cname, score], i) => {
+                      const isWinner = winners.includes(cname)
+                      const pct = Math.round((score / maxScore) * 100)
+                      return (
+                        <div key={cname} style={{
+                          borderRadius: 8,
+                          padding: '0.6rem 0.75rem',
+                          background: isWinner ? 'var(--green-light)' : 'var(--bg)',
+                          border: isWinner ? '1.5px solid #16a34a' : '1px solid var(--border)',
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
+                            <span style={{ fontWeight: isWinner ? 700 : 400 }}>
+                              {isWinner ? '✓ ' : ''}{i + 1}. {cname}
+                            </span>
+                            <span style={{ fontWeight: 600, fontSize: '0.9rem', color: isWinner ? 'var(--green)' : 'var(--muted)' }}>
+                              Ø {average(score, role.voteCount)} · {score} Pkt.
+                            </span>
+                          </div>
+                          <div style={{ height: 6, background: 'var(--border)', borderRadius: 99, overflow: 'hidden' }}>
+                            <div style={{ height: '100%', width: `${pct}%`, background: isWinner ? '#16a34a' : '#94a3b8', borderRadius: 99 }} />
+                          </div>
+                        </div>
+                      )
+                    })}
+                    <div style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>
+                      {role.voteCount} Stimmen · {role.seats} Platz{role.seats > 1 ? 'e' : ''} · weniger Punkte = weniger Widerstand = besser
+                    </div>
                   </div>
-                  {winners.map((name) => (
-                    <div key={name} style={{ fontWeight: 600, fontSize: '1.05rem' }}>✓ {name}</div>
-                  ))}
-                </div>
-              )}
+                )
+              })()}
 
               <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                 {role.status === 'setup' && (
