@@ -25,9 +25,9 @@ describe('aggregateVotes', () => {
     expect(aggregateVotes([])).toEqual({})
   })
 
-  it('verarbeitet Extremwerte (0 und 10)', () => {
-    const votes = [{ Lea: 0 }, { Lea: 10 }, { Lea: 0 }]
-    expect(aggregateVotes(votes).Lea).toBe(10)
+  it('verarbeitet Extremwerte (0 und 4)', () => {
+    const votes = [{ Lea: 0 }, { Lea: 4 }, { Lea: 0 }]
+    expect(aggregateVotes(votes).Lea).toBe(4)
   })
 
   it('verarbeitet 25 gleichzeitige Stimmen korrekt', () => {
