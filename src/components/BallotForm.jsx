@@ -1,13 +1,27 @@
 import { useState } from 'react'
 
-export default function BallotForm({ role, onSubmit, voterName, resistanceLabels }) {
+const SCALE_LABELS = {
+  0: 'Kein Widerstand',
+  2: 'Gering',
+  5: 'Mittel',
+  8: 'Hoch',
+  10: 'Extrem',
+}
+
+function scoreColor(v) {
+  if (v === null) return { bg: 'var(--bg)', border: 'var(--border)', text: 'var(--muted)' }
+  if (v <= 2) return { bg: '#dcfce7', border: '#16a34a', text: '#15803d' }
+  if (v <= 4) return { bg: '#fef9c3', border: '#ca8a04', text: '#a16207' }
+  if (v <= 6) return { bg: '#fed7aa', border: '#ea580c', text: '#c2410c' }
+  if (v <= 8) return { bg: '#fecaca', border: '#dc2626', text: '#b91c1c' }
+  return { bg: '#f3e8ff', border: '#9333ea', text: '#7e22ce' }
+}
+
+export default function BallotForm({ role, onSubmit }) {
   const [scores, setScores] = useState({})
 
   const allRated = role.candidates.every((c) => scores[c.name] !== undefined)
-
-  function set(name, value) {
-    setScores((prev) => ({ ...prev, [name]: value }))
-  }
+  const remaining = role.candidates.filter((c) => scores[c.name] === undefined).length
 
   function submit() {
     if (!allRated) return
@@ -19,50 +33,56 @@ export default function BallotForm({ role, onSubmit, voterName, resistanceLabels
       <div className="card" style={{ padding: '1rem' }}>
         <h2>{role.title}</h2>
         <p style={{ fontSize: '0.85rem', color: 'var(--muted)', marginTop: '0.25rem' }}>
-          {voterName} · Bewerte deinen Widerstand für jede kandidierende Person
+          Widerstand 0 (kein) bis 10 (extrem) — anonym
         </p>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.25rem', padding: '0 0.25rem' }}>
-        {resistanceLabels.map((l, i) => (
-          <div key={i} style={{ width: 44, textAlign: 'center', fontSize: '0.65rem', color: 'var(--muted)', lineHeight: 1.3 }}>
-            <div style={{ fontSize: '1rem' }}>{l.icon}</div>
-            <div>{i}</div>
-          </div>
-        ))}
-      </div>
-
       <div className="gap-sm">
-        {role.candidates.map((c) => (
-          <div key={c.name} className="card" style={{ padding: '0.75rem 1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
-            <div style={{ flex: 1 }}>
-              <span style={{ fontWeight: 500 }}>{c.name}</span>
-              <span className={`tag tag-${c.type}`} style={{ marginLeft: '0.4rem' }}>{c.type}</span>
+        {role.candidates.map((c) => {
+          const val = scores[c.name] ?? null
+          const col = scoreColor(val)
+          return (
+            <div key={c.name} className="card" style={{ padding: '1rem', gap: '0.75rem', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{ fontWeight: 600, flex: 1 }}>{c.name}</span>
+                <span className={`tag tag-${c.type}`}>{c.type}</span>
+                {val !== null && (
+                  <span style={{
+                    fontWeight: 700, fontSize: '1.1rem', minWidth: 28, textAlign: 'center',
+                    color: col.text,
+                  }}>{val}</span>
+                )}
+              </div>
+
+              <div>
+                <input
+                  type="range"
+                  min={0} max={10} step={1}
+                  value={val ?? 5}
+                  onChange={(e) => setScores((p) => ({ ...p, [c.name]: Number(e.target.value) }))}
+                  onMouseDown={() => { if (val === null) setScores((p) => ({ ...p, [c.name]: 5 })) }}
+                  onTouchStart={() => { if (val === null) setScores((p) => ({ ...p, [c.name]: 5 })) }}
+                  style={{ width: '100%', accentColor: col.border }}
+                />
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--muted)', marginTop: '0.15rem' }}>
+                  {Object.entries(SCALE_LABELS).map(([k, label]) => (
+                    <span key={k}>{label}</span>
+                  ))}
+                </div>
+              </div>
+
+              {val === null && (
+                <div style={{ fontSize: '0.78rem', color: 'var(--muted)', fontStyle: 'italic' }}>
+                  Schieberegler berühren um zu bewerten
+                </div>
+              )}
             </div>
-            <div style={{ display: 'flex', gap: '0.25rem' }}>
-              {resistanceLabels.map((l, i) => (
-                <button key={i}
-                  title={`${i} – ${l.label}`}
-                  onClick={() => set(c.name, i)}
-                  style={{
-                    width: 44, height: 44,
-                    fontSize: '1.1rem',
-                    background: scores[c.name] === i ? (i === 0 ? '#dcfce7' : i <= 1 ? '#fef9c3' : i <= 2 ? '#fed7aa' : '#fee2e2') : 'var(--bg)',
-                    border: scores[c.name] === i ? `2px solid ${i === 0 ? '#16a34a' : i <= 1 ? '#ca8a04' : i <= 2 ? '#ea580c' : '#dc2626'}` : '2px solid var(--border)',
-                    borderRadius: 8,
-                    padding: 0,
-                    transition: 'all 0.1s',
-                  }}>
-                  {l.icon}
-                </button>
-              ))}
-            </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
 
       <button className="btn-primary" disabled={!allRated} onClick={submit}>
-        {allRated ? 'Stimme abgeben' : `Noch ${role.candidates.length - Object.keys(scores).length} nicht bewertet`}
+        {allRated ? 'Stimme abgeben' : `Noch ${remaining} nicht bewertet`}
       </button>
 
       <div style={{ fontSize: '0.75rem', color: 'var(--muted)', textAlign: 'center' }}>
