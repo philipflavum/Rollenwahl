@@ -1,19 +1,17 @@
 import { useState, useEffect } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useRoles } from '../hooks/useRoles'
-import { TOTAL_VOTERS } from '../data/roles'
+import { getWinners, rankCandidates, average } from '../lib/logic'
 
 const STATUS_LABEL = { setup: 'Vorbereitung', open: 'Offen', closed: 'Ausgewertet' }
 const STATUS_COLOR = { setup: '#6b7280', open: '#16a34a', closed: '#2563eb' }
 
 export default function ModeratorView() {
-  const { roles, initRoles, setStatus, addCandidate, removeCandidate, getResults, resetRole } = useRoles()
+  const { roles, totalVoters, setStatus, addCandidate, removeCandidate, getResults, resetRole } = useRoles()
   const [results, setResults] = useState({})
   const [newName, setNewName] = useState({})
   const [newType, setNewType] = useState({})
   const [showQR, setShowQR] = useState(false)
-
-  useEffect(() => { initRoles() }, [])
 
   const participantUrl = `${window.location.origin}/`
 
@@ -35,24 +33,33 @@ export default function ModeratorView() {
     })
   }, [roles])
 
-  function getWinners(role, totals) {
-    const sorted = Object.entries(totals).sort((a, b) => a[1] - b[1])
-    if (sorted.length === 0) return []
-    const cutoffIndex = role.seats - 1
-    if (cutoffIndex >= sorted.length) return sorted.map(([n]) => n)
-    const cutoffScore = sorted[cutoffIndex][1]
-    return sorted.filter(([, s]) => s <= cutoffScore).map(([n]) => n)
-  }
+  if (!roles) return (
+    <div className="page" style={{ paddingTop: '3rem', textAlign: 'center', color: 'var(--muted)' }}>
+      Verbinde mit Firebase…
+    </div>
+  )
 
-  if (!roles) return <div className="page" style={{ paddingTop: '3rem', textAlign: 'center', color: 'var(--muted)' }}>Verbinde mit Firebase…</div>
+  if (roles.length === 0) return (
+    <div className="page" style={{ paddingTop: '3rem' }}>
+      <div className="card" style={{ textAlign: 'center', padding: '2.5rem 1.5rem' }}>
+        <h2>Keine Rollen konfiguriert</h2>
+        <p style={{ color: 'var(--muted)', marginTop: '0.5rem', fontSize: '0.9rem' }}>
+          Bitte zuerst Rollen unter <a href="/admin" style={{ color: 'var(--accent)' }}>/admin</a> einrichten.
+        </p>
+      </div>
+    </div>
+  )
 
   return (
     <div className="page">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <h1>Moderation</h1>
-        <button className="btn-secondary" style={{ fontSize: '0.85rem', padding: '0.4rem 0.8rem' }} onClick={() => setShowQR(!showQR)}>
-          QR-Code
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <a href="/admin" style={{ fontSize: '0.8rem', color: 'var(--muted)', padding: '0.4rem 0.6rem', border: '1px solid var(--border)', borderRadius: 8, textDecoration: 'none' }}>Admin</a>
+          <button className="btn-secondary" style={{ fontSize: '0.85rem', padding: '0.4rem 0.8rem' }} onClick={() => setShowQR(!showQR)}>
+            QR-Code
+          </button>
+        </div>
       </div>
 
       {showQR && (
@@ -64,8 +71,9 @@ export default function ModeratorView() {
 
       <div className="gap-lg">
         {roles.map((role) => {
-          const totals = results[role.id] || {}
-          const winners = role.status === 'closed' ? getWinners(role, totals) : []
+          const stats = results[role.id] || {}
+          const ranked = role.status === 'closed' ? rankCandidates(stats) : []
+          const winners = role.status === 'closed' ? getWinners(stats, role.seats) : []
           const addKey = role.id
 
           return (
@@ -85,9 +93,9 @@ export default function ModeratorView() {
 
               {role.status !== 'closed' && (
                 <div style={{ fontSize: '0.85rem', color: 'var(--muted)' }}>
-                  {role.voteCount} / {TOTAL_VOTERS} haben abgestimmt
+                  {role.voteCount} / {totalVoters} haben abgestimmt
                   <div style={{ marginTop: '0.3rem', height: 6, background: 'var(--border)', borderRadius: 99, overflow: 'hidden' }}>
-                    <div style={{ height: '100%', background: 'var(--accent)', width: `${(role.voteCount / TOTAL_VOTERS) * 100}%`, transition: 'width 0.4s' }} />
+                    <div style={{ height: '100%', background: 'var(--accent)', width: `${(role.voteCount / totalVoters) * 100}%`, transition: 'width 0.4s' }} />
                   </div>
                 </div>
               )}
@@ -135,27 +143,26 @@ export default function ModeratorView() {
                 </div>
               )}
 
-              {role.status === 'closed' && Object.keys(totals).length > 0 && (() => {
-                const sorted = Object.entries(totals).sort((a, b) => a[1] - b[1])
-                const maxScore = role.voteCount * 10 || 1
+              {role.status === 'closed' && ranked.length > 0 && (() => {
+                const maxAvg = 4
                 return (
                   <div className="gap-sm">
                     <h3>Ergebnis — alle Kandidierende</h3>
-                    {sorted.map(([cname, score], i) => {
-                      const isWinner = winners.includes(cname)
-                      const pct = Math.round((score / maxScore) * 100)
+                    {ranked.map((c, i) => {
+                      const isWinner = winners.includes(c.name)
+                      const pct = Math.round((c.avg / maxAvg) * 100)
                       return (
-                        <div key={cname} style={{
+                        <div key={c.name} style={{
                           borderRadius: 8, padding: '0.6rem 0.75rem',
                           background: isWinner ? 'var(--green-light)' : 'var(--bg)',
                           border: isWinner ? '1.5px solid #16a34a' : '1px solid var(--border)',
                         }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
                             <span style={{ fontWeight: isWinner ? 700 : 400 }}>
-                              {isWinner ? '✓ ' : ''}{i + 1}. {cname}
+                              {isWinner ? '✓ ' : ''}{i + 1}. {c.name}
                             </span>
                             <span style={{ fontWeight: 600, fontSize: '0.9rem', color: isWinner ? 'var(--green)' : 'var(--muted)' }}>
-                              Ø {(score / (role.voteCount || 1)).toFixed(1)} · {score} Pkt.
+                              Ø {average(c.total, c.count)} · {c.count}/{role.voteCount} Stimmen
                             </span>
                           </div>
                           <div style={{ height: 6, background: 'var(--border)', borderRadius: 99, overflow: 'hidden' }}>

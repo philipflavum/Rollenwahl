@@ -1,52 +1,57 @@
 /**
- * Berechnet die Gesamtpunkte pro Kandidat:in aus allen abgegebenen Stimmen.
- * @param {Object[]} votes - Array von Ballot-Objekten { KandidatName: 0-10, ... }
- * @returns {Object} { KandidatName: Gesamtpunkte }
+ * Aggregiert Stimmen pro Kandidat:in. Fehlende Einträge = "Keine Abfrage" (nicht gezählt).
+ * @param {Object[]} votes - Array von Ballots { KandidatName: 0-4 } (fehlende Keys = skip)
+ * @returns {Object} { KandidatName: { total, count } }
  */
 export function aggregateVotes(votes) {
-  const totals = {}
+  const result = {}
   votes.forEach((ballot) => {
     Object.entries(ballot).forEach(([name, score]) => {
-      totals[name] = (totals[name] || 0) + score
+      if (!result[name]) result[name] = { total: 0, count: 0 }
+      result[name].total += Number(score)
+      result[name].count += 1
     })
   })
-  return totals
+  return result
+}
+
+function avg(stat) {
+  return stat.count ? stat.total / stat.count : 0
 }
 
 /**
- * Ermittelt die Gewinner:innen einer Rolle.
- * Bei Gleichstand an der Grenze werden alle Gleichstehenden zurückgegeben.
- * @param {Object} totals - { KandidatName: Gesamtpunkte }
- * @param {number} seats - Anzahl verfügbarer Plätze
- * @returns {string[]} Namen der Gewinner:innen
+ * Ermittelt Gewinner:innen nach niedrigstem Durchschnitt. Bei Gleichstand alle einschliessen.
+ * @param {Object} stats - { KandidatName: { total, count } }
+ * @param {number} seats
+ * @returns {string[]}
  */
-export function getWinners(totals, seats) {
-  const entries = Object.entries(totals)
-  if (entries.length === 0) return []
-  const sorted = entries.sort((a, b) => a[1] - b[1])
+export function getWinners(stats, seats) {
+  const entries = Object.entries(stats)
+  if (!entries.length) return []
+  const sorted = [...entries].sort((a, b) => avg(a[1]) - avg(b[1]))
   const cutoffIndex = Math.min(seats - 1, sorted.length - 1)
-  const cutoffScore = sorted[cutoffIndex][1]
-  return sorted.filter(([, score]) => score <= cutoffScore).map(([name]) => name)
+  const cutoffAvg = avg(sorted[cutoffIndex][1])
+  return sorted.filter(([, s]) => avg(s) <= cutoffAvg).map(([name]) => name)
 }
 
 /**
- * Sortiert Kandidat:innen nach Gesamtpunkten aufsteigend (weniger = besser).
- * @param {Object} totals - { KandidatName: Gesamtpunkte }
- * @returns {Array} [{ name, score }] sortiert
+ * Sortiert Kandidat:innen nach Durchschnitt aufsteigend.
+ * @param {Object} stats - { KandidatName: { total, count } }
+ * @returns {Array} [{ name, total, count, avg }]
  */
-export function rankCandidates(totals) {
-  return Object.entries(totals)
-    .map(([name, score]) => ({ name, score }))
-    .sort((a, b) => a.score - b.score)
+export function rankCandidates(stats) {
+  return Object.entries(stats)
+    .map(([name, s]) => ({ name, total: s.total, count: s.count, avg: avg(s) }))
+    .sort((a, b) => a.avg - b.avg)
 }
 
 /**
- * Berechnet den Durchschnittswert pro Kandidat:in.
- * @param {number} score - Gesamtpunkte
- * @param {number} voteCount - Anzahl abgegebener Stimmen
- * @returns {string} z.B. "3.5"
+ * Formatiert einen Durchschnittswert auf eine Dezimalstelle.
+ * @param {number} total
+ * @param {number} count
+ * @returns {string}
  */
-export function average(score, voteCount) {
-  if (!voteCount) return '0.0'
-  return (score / voteCount).toFixed(1)
+export function average(total, count) {
+  if (!count) return '0.0'
+  return (total / count).toFixed(1)
 }

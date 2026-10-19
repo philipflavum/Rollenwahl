@@ -2,23 +2,23 @@ import { describe, it, expect } from 'vitest'
 import { aggregateVotes, getWinners, rankCandidates, average } from './logic'
 
 // ─────────────────────────────────────────────
-// aggregateVotes
+// aggregateVotes — gibt { name: { total, count } } zurück
 // ─────────────────────────────────────────────
 describe('aggregateVotes', () => {
-  it('summiert Punkte korrekt über mehrere Stimmen', () => {
+  it('summiert Punkte und zählt Stimmen korrekt', () => {
     const votes = [
       { Anjli: 2, Fiona: 5 },
       { Anjli: 4, Fiona: 1 },
       { Anjli: 0, Fiona: 3 },
     ]
     const result = aggregateVotes(votes)
-    expect(result.Anjli).toBe(6)
-    expect(result.Fiona).toBe(9)
+    expect(result.Anjli).toEqual({ total: 6, count: 3 })
+    expect(result.Fiona).toEqual({ total: 9, count: 3 })
   })
 
   it('verarbeitet eine einzelne Stimme', () => {
     const result = aggregateVotes([{ Isabel: 7 }])
-    expect(result.Isabel).toBe(7)
+    expect(result.Isabel).toEqual({ total: 7, count: 1 })
   })
 
   it('gibt leeres Objekt zurück bei leeren Stimmen', () => {
@@ -27,14 +27,26 @@ describe('aggregateVotes', () => {
 
   it('verarbeitet Extremwerte (0 und 4)', () => {
     const votes = [{ Lea: 0 }, { Lea: 4 }, { Lea: 0 }]
-    expect(aggregateVotes(votes).Lea).toBe(4)
+    expect(aggregateVotes(votes).Lea).toEqual({ total: 4, count: 3 })
+  })
+
+  it('schliesst fehlende Kandidat:innen aus (= Keine Abfrage)', () => {
+    // Fiona fehlt in zweitem Ballot → nur 1 Stimme für Fiona
+    const votes = [
+      { Anjli: 2, Fiona: 3 },
+      { Anjli: 1 },
+    ]
+    const result = aggregateVotes(votes)
+    expect(result.Anjli).toEqual({ total: 3, count: 2 })
+    expect(result.Fiona).toEqual({ total: 3, count: 1 })
   })
 
   it('verarbeitet 25 gleichzeitige Stimmen korrekt', () => {
-    const votes = Array.from({ length: 25 }, (_, i) => ({ Nicolas: i % 11 }))
+    const votes = Array.from({ length: 25 }, (_, i) => ({ Nicolas: i % 5 }))
     const result = aggregateVotes(votes)
-    const expected = Array.from({ length: 25 }, (_, i) => i % 11).reduce((a, b) => a + b, 0)
-    expect(result.Nicolas).toBe(expected)
+    expect(result.Nicolas.count).toBe(25)
+    const expected = Array.from({ length: 25 }, (_, i) => i % 5).reduce((a, b) => a + b, 0)
+    expect(result.Nicolas.total).toBe(expected)
   })
 })
 
@@ -42,14 +54,22 @@ describe('aggregateVotes', () => {
 // getWinners — 1 Platz
 // ─────────────────────────────────────────────
 describe('getWinners (1 Platz)', () => {
-  it('wählt Kandidat:in mit den wenigsten Punkten', () => {
-    const totals = { Anjli: 10, Fiona: 5, Isabel: 8 }
-    expect(getWinners(totals, 1)).toEqual(['Fiona'])
+  it('wählt Kandidat:in mit dem niedrigsten Durchschnitt', () => {
+    const stats = {
+      Anjli:  { total: 10, count: 2 }, // Ø 5.0
+      Fiona:  { total: 4,  count: 2 }, // Ø 2.0
+      Isabel: { total: 8,  count: 2 }, // Ø 4.0
+    }
+    expect(getWinners(stats, 1)).toEqual(['Fiona'])
   })
 
   it('gibt alle Gleichstehenden zurück bei Unentschieden', () => {
-    const totals = { Anjli: 5, Fiona: 5, Isabel: 8 }
-    const winners = getWinners(totals, 1)
+    const stats = {
+      Anjli:  { total: 4, count: 2 }, // Ø 2.0
+      Fiona:  { total: 4, count: 2 }, // Ø 2.0
+      Isabel: { total: 8, count: 2 }, // Ø 4.0
+    }
+    const winners = getWinners(stats, 1)
     expect(winners).toContain('Anjli')
     expect(winners).toContain('Fiona')
     expect(winners).not.toContain('Isabel')
@@ -60,19 +80,23 @@ describe('getWinners (1 Platz)', () => {
   })
 
   it('gibt alle zurück wenn weniger Kandidierende als Plätze', () => {
-    const totals = { Anjli: 3 }
-    expect(getWinners(totals, 2)).toEqual(['Anjli'])
+    const stats = { Anjli: { total: 3, count: 1 } }
+    expect(getWinners(stats, 2)).toEqual(['Anjli'])
   })
 })
 
 // ─────────────────────────────────────────────
 // getWinners — 2 Plätze (Moderation)
 // ─────────────────────────────────────────────
-describe('getWinners (2 Plätze — Moderation)', () => {
-  it('wählt die 2 mit den wenigsten Punkten', () => {
-    // Aktuelle Moderation-Kandidaten: Fiona, Isabel, Lea, Nicolas
-    const totals = { Fiona: 12, Isabel: 5, Lea: 8, Nicolas: 20 }
-    const winners = getWinners(totals, 2)
+describe('getWinners (2 Plätze)', () => {
+  it('wählt die 2 mit dem niedrigsten Durchschnitt', () => {
+    const stats = {
+      Fiona:   { total: 12, count: 3 }, // Ø 4.0
+      Isabel:  { total: 3,  count: 3 }, // Ø 1.0
+      Lea:     { total: 6,  count: 3 }, // Ø 2.0
+      Nicolas: { total: 9,  count: 3 }, // Ø 3.0 → raus
+    }
+    const winners = getWinners(stats, 2)
     expect(winners).toContain('Isabel')
     expect(winners).toContain('Lea')
     expect(winners).not.toContain('Fiona')
@@ -80,47 +104,47 @@ describe('getWinners (2 Plätze — Moderation)', () => {
   })
 
   it('inkludiert alle Gleichstehenden an der Grenze', () => {
-    const totals = { A: 3, B: 7, C: 7, D: 7, E: 10 }
-    const winners = getWinners(totals, 2)
+    const stats = {
+      A: { total: 3,  count: 1 }, // Ø 3
+      B: { total: 7,  count: 1 }, // Ø 7
+      C: { total: 7,  count: 1 }, // Ø 7
+      D: { total: 7,  count: 1 }, // Ø 7
+      E: { total: 10, count: 1 }, // Ø 10
+    }
+    const winners = getWinners(stats, 2)
     expect(winners).toContain('A')
     expect(winners).toContain('B')
     expect(winners).toContain('C')
     expect(winners).toContain('D')
     expect(winners).not.toContain('E')
   })
-
-  it('Gleichstand auf Platz 1 bei 2 Plätzen — alle Gleichstehenden rein', () => {
-    const totals = { A: 5, B: 5, C: 5, D: 9 }
-    const winners = getWinners(totals, 2)
-    expect(winners).toContain('A')
-    expect(winners).toContain('B')
-    expect(winners).toContain('C')
-    expect(winners).not.toContain('D')
-  })
 })
 
 // ─────────────────────────────────────────────
-// Kandidaten-Validierung (aktualisierte Listen)
+// Keine Abfrage — wird nicht in Bewertung einbezogen
 // ─────────────────────────────────────────────
-describe('Kandidaten-Listen', () => {
-  it('Gastgeber:in enthält nicht Ivo, Noémi — enthält Valerie (nicht Valeria)', () => {
-    const gastgeber = ['Anjli', 'Fiona', 'Isabel', 'Lea', 'Manuela', 'Nicolas', 'Renata', 'Valerie']
-    expect(gastgeber).not.toContain('Ivo')
-    expect(gastgeber).not.toContain('Noémi')
-    expect(gastgeber).not.toContain('Valeria')
-    expect(gastgeber).toContain('Valerie')
+describe('Keine Abfrage', () => {
+  it('Kandidat:in mit Keine Abfrage hat niedrigere count als andere', () => {
+    const votes = [
+      { Anjli: 4, Fiona: 2 },
+      { Anjli: 2 },           // Keine Abfrage für Fiona
+      { Anjli: 0, Fiona: 0 },
+    ]
+    const result = aggregateVotes(votes)
+    expect(result.Anjli.count).toBe(3)
+    expect(result.Fiona.count).toBe(2) // nur 2 statt 3
   })
 
-  it('Dokumentar:in enthält nicht Sarah', () => {
-    const dokumentarin = ['Fiona', 'Ivo', 'Leonie', 'Manuela', 'Nicolas']
-    expect(dokumentarin).not.toContain('Sarah')
-  })
-
-  it('Moderation enthält nicht Michel, nicht Valeria', () => {
-    const moderation = ['Fiona', 'Isabel', 'Lea', 'Nicolas']
-    expect(moderation).not.toContain('Michel')
-    expect(moderation).not.toContain('Valeria')
-    expect(moderation).toHaveLength(4)
+  it('Durchschnitt basiert auf tatsächlich abgegebenen Stimmen', () => {
+    const votes = [
+      { Anjli: 4 },
+      { Anjli: 0 },
+      {},  // Keine Abfrage für alle
+    ]
+    const result = aggregateVotes(votes)
+    expect(result.Anjli).toEqual({ total: 4, count: 2 })
+    // Durchschnitt = 4/2 = 2.0, nicht 4/3 = 1.33
+    expect(average(result.Anjli.total, result.Anjli.count)).toBe('2.0')
   })
 })
 
@@ -128,16 +152,26 @@ describe('Kandidaten-Listen', () => {
 // rankCandidates
 // ─────────────────────────────────────────────
 describe('rankCandidates', () => {
-  it('sortiert aufsteigend nach Punkten', () => {
-    const totals = { B: 10, A: 2, C: 6 }
-    const ranked = rankCandidates(totals)
+  it('sortiert aufsteigend nach Durchschnitt', () => {
+    const stats = {
+      B: { total: 8, count: 2 }, // Ø 4.0
+      A: { total: 2, count: 2 }, // Ø 1.0
+      C: { total: 6, count: 2 }, // Ø 3.0
+    }
+    const ranked = rankCandidates(stats)
     expect(ranked[0].name).toBe('A')
     expect(ranked[1].name).toBe('C')
     expect(ranked[2].name).toBe('B')
   })
 
-  it('gibt leeres Array zurück bei leeren Totals', () => {
+  it('gibt leeres Array zurück bei leeren Stats', () => {
     expect(rankCandidates({})).toEqual([])
+  })
+
+  it('enthält name, total, count und avg', () => {
+    const stats = { X: { total: 6, count: 3 } }
+    const ranked = rankCandidates(stats)
+    expect(ranked[0]).toMatchObject({ name: 'X', total: 6, count: 3, avg: 2 })
   })
 })
 
@@ -146,11 +180,11 @@ describe('rankCandidates', () => {
 // ─────────────────────────────────────────────
 describe('average', () => {
   it('berechnet Durchschnitt korrekt', () => {
-    expect(average(30, 6)).toBe('5.0')
+    expect(average(6, 3)).toBe('2.0')
     expect(average(7, 2)).toBe('3.5')
   })
 
-  it('gibt 0.0 zurück bei 0 Stimmen (keine Division durch 0)', () => {
+  it('gibt 0.0 zurück bei 0 Stimmen', () => {
     expect(average(0, 0)).toBe('0.0')
   })
 
@@ -164,10 +198,7 @@ describe('average', () => {
 // ─────────────────────────────────────────────
 describe('Anonymität', () => {
   it('aggregateVotes speichert keine Wähler:innen-Namen', () => {
-    const votes = [
-      { Anjli: 2, Fiona: 5 },
-      { Anjli: 4, Fiona: 1 },
-    ]
+    const votes = [{ Anjli: 2, Fiona: 5 }, { Anjli: 4, Fiona: 1 }]
     const result = aggregateVotes(votes)
     expect(Object.keys(result)).toEqual(expect.arrayContaining(['Anjli', 'Fiona']))
     expect(Object.keys(result).length).toBe(2)

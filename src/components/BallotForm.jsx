@@ -8,50 +8,71 @@ const LEVELS = [
   { value: 4, label: 'extrem', color: '#dc2626', bg: '#fee2e2' },
 ]
 
-export default function BallotForm({ role, onSubmit }) {
+export default function BallotForm({ role, onSubmit, isProxy = false }) {
   const [scores, setScores] = useState({})
 
   const allRated = role.candidates.every((c) => scores[c.name] !== undefined)
   const remaining = role.candidates.filter((c) => scores[c.name] === undefined).length
+
+  function handleSubmit() {
+    // "skip"-Werte nicht übermitteln — Kandidat:in wird nicht in Bewertung einbezogen
+    const ballot = Object.fromEntries(
+      Object.entries(scores).filter(([, v]) => v !== 'skip')
+    )
+    onSubmit(ballot)
+  }
 
   return (
     <div className="gap-md">
       <div className="card" style={{ padding: '1rem' }}>
         <h2>{role.title}</h2>
         <p style={{ fontSize: '0.85rem', color: 'var(--muted)', marginTop: '0.25rem' }}>
-          Wie gross ist dein Widerstand? — anonym
+          {isProxy
+            ? 'Stellvertretung — Widerstandsabfrage anonym'
+            : 'Wie gross ist dein Widerstand? — anonym'}
         </p>
       </div>
 
       <div className="gap-sm">
         {role.candidates.map((c) => {
           const val = scores[c.name]
+          const isSkip = val === 'skip'
           return (
             <div key={c.name} className="card" style={{ padding: '0.75rem 1rem' }}>
-              <div style={{ marginBottom: '0.5rem' }}>
-                <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{c.name}</span>
-                <span className={`tag tag-${c.type}`} style={{ marginLeft: '0.4rem' }}>{c.type}</span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                <div>
+                  <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{c.name}</span>
+                  <span className={`tag tag-${c.type}`} style={{ marginLeft: '0.4rem' }}>{c.type}</span>
+                </div>
+                <button
+                  onClick={() => setScores((p) => ({ ...p, [c.name]: isSkip ? undefined : 'skip' }))}
+                  style={{
+                    fontSize: '0.65rem', padding: '2px 7px', borderRadius: 6, cursor: 'pointer',
+                    border: isSkip ? '1.5px solid #6b7280' : '1px solid var(--border)',
+                    background: isSkip ? '#f3f4f6' : 'transparent',
+                    color: isSkip ? '#374151' : 'var(--muted)',
+                    fontWeight: isSkip ? 700 : 400,
+                  }}
+                >
+                  {isSkip ? '↩ Abfrage' : 'Keine Abfrage'}
+                </button>
               </div>
-              <div style={{ display: 'flex', gap: '0.4rem' }}>
+              <div style={{ display: 'flex', gap: '0.4rem', opacity: isSkip ? 0.3 : 1 }}>
                 {LEVELS.map((l) => {
-                  const selected = val === l.value
+                  const selected = !isSkip && val === l.value
                   return (
                     <button
                       key={l.value}
+                      disabled={isSkip}
                       onClick={() => setScores((p) => ({ ...p, [c.name]: l.value }))}
                       style={{
-                        flex: 1,
-                        height: 44,
-                        borderRadius: 8,
+                        flex: 1, height: 44, borderRadius: 8, cursor: isSkip ? 'default' : 'pointer',
                         border: selected ? `2.5px solid ${l.color}` : '2px solid var(--border)',
                         background: selected ? l.bg : 'var(--bg)',
                         color: selected ? l.color : 'var(--muted)',
                         fontWeight: selected ? 700 : 400,
-                        fontSize: '0.7rem',
-                        lineHeight: 1.2,
-                        padding: '2px',
+                        fontSize: '0.7rem', lineHeight: 1.2, padding: '2px',
                         transition: 'all 0.1s',
-                        cursor: 'pointer',
                       }}
                     >
                       {l.label}
@@ -64,7 +85,7 @@ export default function BallotForm({ role, onSubmit }) {
         })}
       </div>
 
-      <button className="btn-primary" disabled={!allRated} onClick={() => onSubmit(scores)}>
+      <button className="btn-primary" disabled={!allRated} onClick={handleSubmit}>
         {allRated ? 'Stimme abgeben' : `Noch ${remaining} nicht bewertet`}
       </button>
 

@@ -6,6 +6,7 @@ export default function ParticipantView() {
   const { roles, submitVote } = useRoles()
   const [activeRole, setActiveRole] = useState(null)
   const [done, setDone] = useState(false)
+  const [isProxy, setIsProxy] = useState(false)
 
   useEffect(() => {
     if (!roles) return
@@ -15,18 +16,23 @@ export default function ParticipantView() {
       const alreadyVoted = localStorage.getItem(key) === 'yes'
       setActiveRole(open)
       setDone(alreadyVoted)
+      if (!alreadyVoted) setIsProxy(false)
     } else {
       setActiveRole(null)
       setDone(false)
+      setIsProxy(false)
     }
   }, [roles])
 
   async function handleVote(ballot) {
     if (!activeRole) return
     await submitVote(activeRole.id, ballot)
-    const key = `voted_${activeRole.id}_r${activeRole.round ?? 0}`
-    localStorage.setItem(key, 'yes')
+    if (!isProxy) {
+      const key = `voted_${activeRole.id}_r${activeRole.round ?? 0}`
+      localStorage.setItem(key, 'yes')
+    }
     setDone(true)
+    setIsProxy(false)
   }
 
   if (!roles) {
@@ -61,13 +67,20 @@ export default function ParticipantView() {
             Deine Stimme für <strong>{activeRole.title}</strong> wurde anonym gespeichert.
           </p>
         </div>
+        <button
+          className="btn-secondary"
+          style={{ marginTop: '1rem', width: '100%' }}
+          onClick={() => { setIsProxy(true); setDone(false) }}
+        >
+          In Stellvertretung für jemanden abstimmen
+        </button>
       </div>
     )
   }
 
   return (
     <div className="page" style={{ paddingTop: '1rem' }}>
-      <BallotForm role={activeRole} onSubmit={handleVote} />
+      <BallotForm role={activeRole} onSubmit={handleVote} isProxy={isProxy} />
     </div>
   )
 }
